@@ -64,7 +64,8 @@ ios/.symlinks
 .history
 
 .env
-.env.*
-.env
-.env
-.env
+/env
+.env.local
+.env.*.local
+.env.example
+/env.example
