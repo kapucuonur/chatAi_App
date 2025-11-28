@@ -63,3 +63,5 @@ ios/.symlinks
 /history
 .history
 
+.env
+.env.*
