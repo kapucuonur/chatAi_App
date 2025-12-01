@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "gemini_ai" "\0"
+            VALUE "FileDescription", "chatAi_App" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "gemini_ai" "\0"
+            VALUE "InternalName", "chatAi_App" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "gemini_ai.exe" "\0"
-            VALUE "ProductName", "gemini_ai" "\0"
+            VALUE "OriginalFilename", "chatAi_App.exe" "\0"
+            VALUE "ProductName", "chatAi_App" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

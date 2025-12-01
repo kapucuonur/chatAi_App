@@ -5,9 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
@@ -77,11 +76,14 @@ class _ChatScreenState extends State<ChatScreen> {
   late final GenerativeModel _model;
   late final ChatSession _chat;
 
-  // Ses özellikleri - DÜZELTİLDİ
-  late SpeechToText _speechToText;
-  late FlutterTts _flutterTts;
+  // Ses özellikleri
+  final stt.SpeechToText _speechToText = stt.SpeechToText();
+  final FlutterTts _flutterTts = FlutterTts();
   bool _speechEnabled = false;
   bool _isListening = false;
+  bool _speechInitialized = false;
+  String _speechStatus = 'unknown';
+  String _lastError = '';
 
   @override
   void initState() {
@@ -95,67 +97,221 @@ class _ChatScreenState extends State<ChatScreen> {
     _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
     _chat = _model.startChat();
 
-    // Ses sistemleri - DÜZELTİLDİ
-    _speechToText = SpeechToText();
-    _flutterTts = FlutterTts();
+    // Initialize speech immediately
     _initSpeech();
 
     // Hoş geldin mesajı
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final loc = AppLocalizations.of(context)!;
       _messages.add(Message(text: loc.welcomeMessage, isUser: false));
-      _speak(loc.welcomeMessage);
       setState(() {});
       _scrollToBottom();
+
+      // Hoş geldin mesajını konuş
+      _speak(loc.welcomeMessage);
     });
   }
 
-  void _initSpeech() async {
-    _speechEnabled = await _speechToText.initialize();
-    if (mounted) setState(() {});
+  Future<void> _initSpeech() async {
+    try {
+      print("=== INIT SPEECH START ===");
+      print(
+        "Platform: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}",
+      );
+
+      bool available = await _speechToText.initialize(
+        onStatus: (status) {
+          print('Speech status: $status');
+          setState(() {
+            _speechStatus = status;
+          });
+
+          // If speech stops listening, update UI
+          if (status == 'notListening' && _isListening) {
+            setState(() {
+              _isListening = false;
+            });
+          }
+        },
+        onError: (errorNotification) {
+          print('Speech error: ${errorNotification.errorMsg}');
+          setState(() {
+            _lastError =
+                '${errorNotification.errorMsg} - ${errorNotification.permanent}';
+          });
+
+          // Handle specific iOS errors
+          if (errorNotification.errorMsg == 'error_retry') {
+            print('iOS speech error - will retry in 1 second');
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted && !_isListening) {
+                _startListening();
+              }
+            });
+          }
+
+          if (errorNotification.permanent) {
+            print('Permanent error: ${errorNotification.errorMsg}');
+            setState(() {
+              _speechEnabled = false;
+            });
+          }
+        },
+        debugLogging: true,
+      );
+
+      setState(() {
+        _speechEnabled = available;
+        _speechInitialized = true;
+      });
+
+      print("Speech initialized: $available");
+      print("=== INIT SPEECH END ===");
+    } catch (e, stackTrace) {
+      print("Speech initialization failed with exception: $e");
+      print("Stack trace: $stackTrace");
+      setState(() {
+        _speechEnabled = false;
+        _speechInitialized = true;
+      });
+    }
   }
 
   Future<void> _startListening() async {
-    final status = await Permission.microphone.request();
-    if (status != PermissionStatus.granted) {
+    print("=== START LISTENING BUTTON CLICKED ===");
+
+    if (!_speechInitialized) {
+      await _initSpeech();
+    }
+
+    if (!_speechEnabled) {
+      print("Speech not enabled!");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             Localizations.localeOf(context).languageCode == 'tr'
-                ? "Mikrofon izni verilmedi. Ayarlardan açın."
-                : "Microphone permission denied.",
+                ? "Ses tanıma mevcut değil"
+                : "Speech recognition not available",
           ),
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
     }
 
-    if (!_isListening && _speechEnabled) {
-      await _speechToText.listen(
-        onResult: (result) {
-          setState(() {
-            _controller.text = result.recognizedWords;
-          });
-        },
-        localeId: Localizations.localeOf(context).languageCode == 'tr'
-            ? 'tr_TR'
-            : 'en_US',
-      );
-      setState(() => _isListening = true);
+    if (!_isListening) {
+      try {
+        print("Starting speech recognition...");
+
+        // Stop any existing listening first (iOS fix)
+        if (_speechStatus == 'listening' || _speechStatus == 'notListening') {
+          await _speechToText.stop();
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+
+        // For iOS, we need to handle permission prompts
+        if (Platform.isIOS) {
+          // Request permission by attempting to listen
+          bool hasPermission = await _speechToText.initialize(
+            onStatus: (status) => print('Status: $status'),
+            onError: (error) => print('Error: $error'),
+          );
+
+          if (!hasPermission) {
+            print("No speech permission on iOS");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  Localizations.localeOf(context).languageCode == 'tr'
+                      ? "Ses izinleri gerekli. Ayarlardan kontrol edin."
+                      : "Speech permissions required. Please check settings.",
+                ),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+            return;
+          }
+        }
+
+        await _speechToText.listen(
+          onResult: (result) {
+            print("Speech result: ${result.recognizedWords}");
+            if (result.finalResult) {
+              setState(() {
+                _controller.text = result.recognizedWords;
+              });
+              // Auto-submit when final result is received
+              if (result.recognizedWords.isNotEmpty) {
+                _sendMessage(text: result.recognizedWords);
+              }
+            }
+          },
+          localeId: Localizations.localeOf(context).languageCode == 'tr'
+              ? 'tr_TR'
+              : 'en_US',
+          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 3),
+          partialResults: true,
+          onSoundLevelChange: (level) {
+            print("Sound level: $level");
+          },
+          cancelOnError: true, // Let iOS handle errors gracefully
+          listenMode: stt.ListenMode.dictation,
+        );
+
+        print("Speech recognition started successfully");
+        setState(() => _isListening = true);
+      } catch (e) {
+        print("Error starting speech recognition: $e");
+        setState(() => _isListening = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'tr'
+                  ? "Ses tanıma hatası: ${e.toString()}"
+                  : "Speech recognition error: ${e.toString()}",
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _stopListening() async {
-    await _speechToText.stop();
-    setState(() => _isListening = false);
+    print("Stopping speech recognition...");
+    try {
+      if (_isListening || _speechStatus == 'listening') {
+        await _speechToText.stop();
+        setState(() => _isListening = false);
+        print("Speech recognition stopped");
+      }
+    } catch (e) {
+      print("Error stopping speech recognition: $e");
+      setState(() => _isListening = false);
+    }
   }
 
   Future<void> _speak(String text) async {
-    await _flutterTts.setLanguage(
-      Localizations.localeOf(context).languageCode == 'tr' ? 'tr-TR' : 'en-US',
-    );
-    await _flutterTts.setSpeechRate(0.5);
-    await _flutterTts.speak(text);
+    try {
+      final String displayText = text.length > 50
+          ? '${text.substring(0, 50)}...'
+          : text;
+      print("Speaking: $displayText");
+      await _flutterTts.setLanguage(
+        Localizations.localeOf(context).languageCode == 'tr'
+            ? 'tr-TR'
+            : 'en-US',
+      );
+      await _flutterTts.setSpeechRate(0.5);
+      await _flutterTts.setVolume(1.0);
+      await _flutterTts.setPitch(1.0);
+      await _flutterTts.speak(text);
+      print("Speech started");
+    } catch (e) {
+      print("Error with TTS: $e");
+    }
   }
 
   Future<void> _sendMessage({String? text, File? image}) async {
@@ -163,8 +319,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final messageText = text?.trim() ?? _controller.text.trim();
     if (messageText.isEmpty && image == null) return;
 
+    // Stop listening before sending
+    if (_isListening) {
+      await _stopListening();
+    }
+
     _controller.clear();
-    _stopListening();
 
     setState(() {
       _messages.add(Message(text: messageText, image: image, isUser: true));
@@ -210,37 +370,82 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-    if (picked != null) {
-      final imageFile = File(picked.path);
-      setState(
-        () => _messages.add(Message(text: '', image: imageFile, isUser: true)),
+    print("Pick image button clicked");
+    try {
+      // Stop listening before picking image
+      if (_isListening) {
+        await _stopListening();
+      }
+
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
       );
-      _scrollToBottom();
-      await _sendMessage(
-        text: AppLocalizations.of(context)!.imagePromptGallery,
-        image: imageFile,
+      if (picked != null) {
+        print("Image picked: ${picked.path}");
+        final imageFile = File(picked.path);
+        setState(
+          () =>
+              _messages.add(Message(text: '', image: imageFile, isUser: true)),
+        );
+        _scrollToBottom();
+        await _sendMessage(
+          text: AppLocalizations.of(context)!.imagePromptGallery,
+          image: imageFile,
+        );
+      }
+    } catch (e) {
+      print("Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Localizations.localeOf(context).languageCode == 'tr'
+                ? "Resim yükleme hatası: $e"
+                : "Image loading error: $e",
+          ),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
 
   Future<void> _takePhoto() async {
-    final picked = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 85,
-    );
-    if (picked != null) {
-      final imageFile = File(picked.path);
-      setState(
-        () => _messages.add(Message(text: '', image: imageFile, isUser: true)),
+    print("Take photo button clicked");
+
+    try {
+      // Stop listening before taking photo
+      if (_isListening) {
+        await _stopListening();
+      }
+
+      final picked = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
       );
-      _scrollToBottom();
-      await _sendMessage(
-        text: AppLocalizations.of(context)!.imagePromptCamera,
-        image: imageFile,
+      if (picked != null) {
+        print("Photo taken: ${picked.path}");
+        final imageFile = File(picked.path);
+        setState(
+          () =>
+              _messages.add(Message(text: '', image: imageFile, isUser: true)),
+        );
+        _scrollToBottom();
+        await _sendMessage(
+          text: AppLocalizations.of(context)!.imagePromptCamera,
+          image: imageFile,
+        );
+      }
+    } catch (e) {
+      print("Error taking photo: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Localizations.localeOf(context).languageCode == 'tr'
+                ? "Kamera hatası: $e"
+                : "Camera error: $e",
+          ),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -376,30 +581,61 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             child: Row(
               children: [
+                // Galeri butonu
                 IconButton(
-                  onPressed: _pickImage,
-                  icon: const Icon(Icons.photo_library, color: Colors.white),
+                  onPressed: _isLoading ? null : _pickImage,
+                  tooltip: Localizations.localeOf(context).languageCode == 'tr'
+                      ? 'Galeri'
+                      : 'Gallery',
+                  icon: Icon(
+                    Icons.photo_library,
+                    color: _isLoading ? Colors.grey : Colors.white,
+                  ),
                 ),
+
+                // Kamera butonu
                 IconButton(
-                  onPressed: _takePhoto,
-                  icon: const Icon(Icons.camera_alt, color: Colors.white),
+                  onPressed: _isLoading ? null : _takePhoto,
+                  tooltip: Localizations.localeOf(context).languageCode == 'tr'
+                      ? 'Kamera'
+                      : 'Camera',
+                  icon: Icon(
+                    Icons.camera_alt,
+                    color: _isLoading ? Colors.grey : Colors.white,
+                  ),
                 ),
+
+                // Mikrofon butonu
                 IconButton(
-                  onPressed: _isListening ? _stopListening : _startListening,
+                  onPressed: _isLoading
+                      ? null
+                      : (_isListening ? _stopListening : _startListening),
+                  tooltip: _isListening
+                      ? (Localizations.localeOf(context).languageCode == 'tr'
+                            ? 'Sesli girişi durdur'
+                            : 'Stop voice input')
+                      : (Localizations.localeOf(context).languageCode == 'tr'
+                            ? 'Sesli giriş başlat'
+                            : 'Start voice input'),
                   icon: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Icon(
                       _isListening ? Icons.mic : Icons.mic_none,
                       key: ValueKey(_isListening),
-                      color: _isListening ? Colors.redAccent : Colors.white,
+                      color: _isListening
+                          ? Colors.redAccent
+                          : (_isLoading ? Colors.grey : Colors.white),
                       size: 28,
                     ),
                   ),
                 ),
+
+                // Mesaj yazma alanı
                 Expanded(
                   child: TextField(
                     controller: _controller,
                     style: const TextStyle(color: Colors.white),
+                    enabled: !_isLoading,
                     decoration: InputDecoration(
                       hintText: loc.hintText,
                       hintStyle: TextStyle(color: Colors.grey[500]),
@@ -417,6 +653,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
+
+                // Gönder butonu
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: _isLoading ? null : () => _sendMessage(),

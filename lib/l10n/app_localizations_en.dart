@@ -21,11 +21,45 @@ class AppLocalizationsEn extends AppLocalizations {
   String get thinking => 'Gemini is thinking...';
 
   @override
-  String get welcomeMessage => 'Hi! I\'m Gemini 2.5 Flash. You can send images or speak to me!';
+  String get welcomeMessage =>
+      'Hi! I\'m Gemini 2.5 Flash. You can send images or speak to me!';
 
   @override
-  String get imagePromptGallery => 'What\'s in this image? Can you describe it?';
+  String get imagePromptGallery =>
+      'What\'s in this image? Can you describe it?';
 
   @override
   String get imagePromptCamera => 'I just took this photo, what do you see?';
+
+  @override
+  String get gallery => 'Gallery';
+
+  @override
+  String get camera => 'Camera';
+
+  @override
+  String get startListening => 'Start voice input';
+
+  @override
+  String get stopListening => 'Stop voice input';
+
+  @override
+  String get micPermissionDenied =>
+      'Microphone permission denied. Please enable in settings.';
+
+  @override
+  String get cameraPermissionDenied =>
+      'Camera permission denied. Please enable in settings.';
+
+  @override
+  String get speechNotAvailable => 'Speech recognition not available';
+
+  @override
+  String get speechError => 'Speech recognition error';
+
+  @override
+  String get imageError => 'Image loading error';
+
+  @override
+  String get cameraError => 'Camera error';
 }

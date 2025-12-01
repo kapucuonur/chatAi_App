@@ -21,11 +21,43 @@ class AppLocalizationsTr extends AppLocalizations {
   String get thinking => 'Gemini düşünüyor...';
 
   @override
-  String get welcomeMessage => 'Merhaba! Ben Gemini 2.5 Flash. Resim gönderebilir, konuşarak mesaj atabilirsin!';
+  String get welcomeMessage =>
+      'Merhaba! Ben Gemini 2.5 Flash. Resim gönderebilir, konuşarak mesaj atabilirsin!';
 
   @override
   String get imagePromptGallery => 'Bu resimde ne var? Açıklayabilir misin?';
 
   @override
   String get imagePromptCamera => 'Bu fotoğrafı çektim, ne görüyorsun?';
+
+  @override
+  String get gallery => 'Galeri';
+
+  @override
+  String get camera => 'Kamera';
+
+  @override
+  String get startListening => 'Sesli giriş başlat';
+
+  @override
+  String get stopListening => 'Sesli girişi durdur';
+
+  @override
+  String get micPermissionDenied => 'Mikrofon izni verilmedi. Ayarlardan açın.';
+
+  @override
+  String get cameraPermissionDenied =>
+      'Kamera izni verilmedi. Ayarlardan açın.';
+
+  @override
+  String get speechNotAvailable => 'Ses tanıma mevcut değil';
+
+  @override
+  String get speechError => 'Ses tanıma hatası';
+
+  @override
+  String get imageError => 'Resim yükleme hatası';
+
+  @override
+  String get cameraError => 'Kamera hatası';
 }

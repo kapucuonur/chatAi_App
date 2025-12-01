@@ -1,4 +1,5 @@
 {
+  "@@locale": "tr",
   "appTitle": "Gemini AI",
   "geminiTitle": "Gemini 2.5 Flash",
   "hintText": "Mesaj yaz veya konuş...",
@@ -6,5 +7,14 @@
   "welcomeMessage": "Merhaba! Ben Gemini 2.5 Flash. Resim gönderebilir, konuşarak mesaj atabilirsin!",
   "imagePromptGallery": "Bu resimde ne var? Açıklayabilir misin?",
   "imagePromptCamera": "Bu fotoğrafı çektim, ne görüyorsun?",
-  "@@locale": "tr"
+  "gallery": "Galeri",
+  "camera": "Kamera",
+  "startListening": "Sesli giriş başlat",
+  "stopListening": "Sesli girişi durdur",
+  "micPermissionDenied": "Mikrofon izni verilmedi. Ayarlardan açın.",
+  "cameraPermissionDenied": "Kamera izni verilmedi. Ayarlardan açın.",
+  "speechNotAvailable": "Ses tanıma mevcut değil",
+  "speechError": "Ses tanıma hatası",
+  "imageError": "Resim yükleme hatası",
+  "cameraError": "Kamera hatası"
 }

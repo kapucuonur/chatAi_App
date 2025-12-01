@@ -1,6 +1,6 @@
 {
-    "name": "gemini_ai",
-    "short_name": "gemini_ai",
+    "name": "chatAi_App",
+    "short_name": "chatAi_App",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
