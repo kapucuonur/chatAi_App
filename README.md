@@ -329,30 +329,9 @@ For support, feature requests, or bug reports:
 
 ### ⭐ Star this repository if you find it useful!
 
-**Built with ❤️ using Flutter & Gemini AI**
+**Built with ❤️ by Onur Kapucu – 2025 using Flutter & Gemini AI**
 
 [![GitHub stars](https://img.shields.io/github/stars/kapucuonur/chatAi_App?style=social)](https://github.com/kapucuonur/chatAi_App/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/kapucuonur/chatAi_App?style=social)](https://github.com/kapucuonur/chatAi_App/network/members)
 
 </div>
-```
-
-This README includes:
-
-1. **Professional badge system**
-2. **Comprehensive feature descriptions**
-3. **Detailed installation instructions**
-4. **Visual architecture diagrams** (placeholders)
-5. **Troubleshooting guide**
-6. **Performance metrics**
-7. **Contributing guidelines**
-8. **Project status tracking**
-9. **Social badges** for GitHub engagement
-
-Simply copy and paste this into your `README.md` file. Remember to:
-
-1.  Replace placeholder image URLs with actual screenshots
-2.  Update contact information
-3.  Add your actual project metrics if available
-
-                      ### Made with ❤️ by Onur Kapucu – 2025 ###
